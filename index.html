@@ -6,85 +6,95 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#101522">
 <title>Bamnun 밤눈</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
 <style>
   :root {
-    --bg: #101522; --panel: #182036; --panel2: #1f2a47; --text: #e8ecf5;
-    --muted: #8d97b3; --accent: #5b7cff; --ok: #3ddc97; --warn: #ffc247; --orange: #ff9b3d; --bad: #ff5d6c;
+    --bg: #0A0F1F; --panel: #141B33; --panel2: #1C2547; --line: #26315F; --text: #ECEFF8;
+    --muted: #9AA3C4; --accent: #F2B84B; --ok: #5FD3A5; --lime: #A9D96B; --warn: #F2B84B; --orange: #FF9A4D; --bad: #FF6B7A;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
-    font-family: -apple-system, "Segoe UI", Roboto, "Noto Sans KR", sans-serif; }
+    font-family: "Outfit", -apple-system, "Segoe UI", "Noto Sans KR", sans-serif; }
   body { display: flex; flex-direction: column; height: 100dvh;
     padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
-  header { display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 16px; background: var(--panel); gap: 8px; }
-  header h1 { font-size: 17px; margin: 0; }
-  .pill { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: var(--panel2); white-space: nowrap; }
-  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; background: var(--muted); }
-  nav { display: flex; background: var(--panel); border-top: 1px solid #0003; }
-  nav button { flex: 1; padding: 12px 0; background: none; border: none; color: var(--muted);
-    font-size: 14px; border-bottom: 3px solid transparent; }
-  nav button.active { color: var(--text); border-bottom-color: var(--accent); }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 10px 18px 6px; gap: 8px; }
+  .brand { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 700; letter-spacing: .2px; }
+  .brand span { color: var(--accent); font-weight: 500; }
+  .pill { display: flex; align-items: center; font-size: 13px; padding: 7px 12px; border-radius: 999px; background: var(--panel); color: #C6CCE6; white-space: nowrap; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; background: var(--muted); }
+  nav { display: flex; background: #0E1428; border-top: 1px solid var(--panel2); height: 66px; }
+  nav button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    background: none; border: none; color: var(--muted); font-family: inherit; font-size: 12px; min-height: 44px; }
+  nav button svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  nav button.active { color: var(--accent); }
   main { flex: 1; min-height: 0; position: relative; }
   section { display: none; height: 100%; }
   section.active { display: flex; flex-direction: column; }
-  #map { flex: 1; min-height: 140px; }
-  .stage { text-align: center; padding: 10px 12px 8px; background: var(--panel2); }
-  .stage .main { font-size: 20px; font-weight: 700; letter-spacing: .3px; }
-  .stage .sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
-  .stage.s-none .main { color: var(--muted); }
+  .stage { text-align: center; padding: 4px 16px 10px; background: transparent; transition: background .6s; }
+  .stage .owl { width: 132px; height: 132px; display: block; margin: 0 auto; transition: opacity .4s; }
+  .stage .main { font-size: 25px; font-weight: 600; margin-top: 2px; }
+  .stage .sub { font-size: 13px; color: var(--muted); margin-top: 3px; min-height: 17px; }
+  .stage.s-none .owl { opacity: .45; } .stage.s-none .main { color: var(--muted); }
   .stage.s0 .main { color: var(--ok); }
-  .stage.s1 .main { color: #b9e36a; }
-  .stage.s2 { background: #ffc24722; } .stage.s2 .main { color: var(--warn); }
-  .stage.s3 { background: #ff9b3d2b; } .stage.s3 .main { color: var(--orange); }
-  .stage.s4 { background: #ff5d6c33; } .stage.s4 .main { color: var(--bad); }
-  .ctx { font-size: 12px; color: var(--muted); text-align: center; padding: 5px 8px; background: var(--panel); }
-  .banner { background: #ffc24733; color: #ffd98a; font-size: 12px; text-align: center; padding: 4px; display: none; }
-  .stop { background: #ffc24722; padding: 10px 16px; font-size: 15px; }
-  .controls { display: flex; gap: 10px; padding: 10px 12px; background: var(--panel); }
-  .controls button { flex: 1; padding: 14px 8px; border-radius: 12px; border: none; font-size: 15px;
-    font-weight: 600; color: #fff; background: var(--panel2); }
-  .controls button.primary { background: var(--accent); }
-  .controls button.stopbtn { background: var(--bad); }
-  .scroll { overflow-y: auto; padding: 14px 16px 24px; flex: 1; }
-  .card { background: var(--panel); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
-  .card h3 { margin: 0 0 6px; font-size: 15px; }
-  .card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
+  .stage.s1 .main { color: var(--lime); }
+  .stage.s2 { background: linear-gradient(180deg, #F2B84B24, transparent); } .stage.s2 .main { color: var(--warn); }
+  .stage.s3 { background: linear-gradient(180deg, #FF9A4D2E, transparent); } .stage.s3 .main { color: var(--orange); }
+  .stage.s4 { background: linear-gradient(180deg, #FF6B7A38, transparent); } .stage.s4 .main { color: var(--bad); }
+  .ctx { display: flex; gap: 8px; padding: 0 16px; }
+  .ctx div { flex: 1; background: var(--panel); border-radius: 14px; padding: 9px 12px; }
+  .ctx small { display: block; font-size: 11px; color: var(--muted); letter-spacing: .4px; text-transform: uppercase; }
+  .ctx b { display: block; font-size: 17px; font-weight: 600; margin-top: 2px; white-space: nowrap; }
+  .banner { margin: 8px 16px 0; background: #F2B84B26; color: #FFD98A; font-size: 12px; text-align: center; padding: 5px; border-radius: 10px; display: none; }
+  #map { flex: 1; min-height: 120px; margin: 10px 16px 0; border-radius: 22px; overflow: hidden; background: #101730; }
+  .leaflet-tile-pane { filter: invert(1) hue-rotate(195deg) brightness(.82) contrast(.92) saturate(.55); }
+  .stop { display: none; align-items: center; gap: 12px; margin: 10px 16px 0; padding: 12px 14px; border-radius: 18px;
+    background: var(--panel2); border: 1px solid #FF9A4D55; font-size: 15px; line-height: 1.35; }
+  .stop svg { flex: none; width: 36px; height: 36px; padding: 8px; border-radius: 12px; background: var(--orange); fill: none;
+    stroke: #2A1408; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .controls { display: flex; gap: 10px; padding: 12px 16px; }
+  .controls button { flex: 1; height: 54px; border-radius: 18px; border: none; font-family: inherit; font-size: 16px; font-weight: 600; color: #ECEFF8; background: var(--panel2); }
+  .controls button.primary { background: var(--accent); color: #2A1A05; font-weight: 700; }
+  .controls button.stopbtn { background: var(--bad); color: #1A0A10; font-weight: 700; }
+  .scroll { overflow-y: auto; padding: 8px 16px 24px; flex: 1; }
+  .card { background: var(--panel); border-radius: 18px; padding: 14px; margin-bottom: 10px; }
+  .card h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; }
+  .card p { margin: 0; color: #C6CCE6; font-size: 14px; line-height: 1.45; }
   .stats { display: flex; justify-content: space-around; text-align: center; }
-  .stats b { display: block; font-size: 22px; } .stats span { font-size: 12px; color: var(--muted); }
-  h2 { font-size: 15px; margin: 18px 0 8px; color: var(--muted); font-weight: 600; }
-  .trip { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #ffffff12; font-size: 14px; }
+  .stats b { display: block; font-size: 24px; font-weight: 700; } .stats span { font-size: 12px; color: var(--muted); }
+  h2 { font-size: 14px; margin: 18px 0 8px; color: var(--muted); font-weight: 600; letter-spacing: .3px; }
+  .trip { display: flex; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid #ffffff12; font-size: 14px; }
   label { display: block; font-size: 14px; margin: 14px 0 6px; }
-  input[type=number], input[type=text], select { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #ffffff22;
-    background: var(--panel); color: var(--text); font-size: 16px; }
+  input[type=number], input[type=text], select { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--line);
+    background: var(--panel); color: var(--text); font-size: 16px; font-family: inherit; }
   .row { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 14px; }
   .row label { margin: 0; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .hint { color: var(--muted); font-size: 12px; margin-top: 4px; line-height: 1.4; }
-  .btn { width: 100%; padding: 12px; border-radius: 10px; border: none; background: var(--panel2); color: var(--text);
-    font-size: 15px; margin-top: 10px; }
-  .link { background: none; border: none; color: var(--bad); text-decoration: underline; font-size: 14px; margin-top: 18px; padding: 0; }
+  .btn { width: 100%; padding: 13px; border-radius: 14px; border: none; background: var(--panel2); color: var(--text);
+    font-family: inherit; font-size: 15px; margin-top: 10px; }
+  .link { background: none; border: none; color: var(--bad); text-decoration: underline; font-family: inherit; font-size: 14px; margin-top: 18px; padding: 0; }
   .disclaimer { color: var(--muted); font-size: 12px; margin-top: 20px; line-height: 1.5; }
   #toast { position: fixed; left: 12px; right: 12px; top: calc(env(safe-area-inset-top) + 56px); z-index: 2000;
-    background: #000c; color: #fff; padding: 10px 14px; border-radius: 10px; font-size: 14px; display: none; }
-  .arrow { font-size: 30px; line-height: 30px; text-align: center; color: #5b7cff; text-shadow: 0 0 4px #000; }
+    background: #000c; color: #fff; padding: 10px 14px; border-radius: 12px; font-size: 14px; display: none; }
+  .arrow { font-size: 30px; line-height: 30px; text-align: center; color: #F2B84B; text-shadow: 0 0 4px #000; }
   .stopicon { font-size: 28px; line-height: 28px; text-align: center; }
   .sheet { position: fixed; inset: 0; background: #000a; z-index: 3000; display: none; align-items: flex-end; }
-  .sheetBody { background: var(--panel); width: 100%; max-height: 88dvh; overflow: auto; border-radius: 18px 18px 0 0;
-    padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); }
-  .sheetBody h3 { margin: 0 0 4px; font-size: 17px; }
+  .sheetBody { background: var(--panel); width: 100%; max-height: 88dvh; overflow: auto; border-radius: 22px 22px 0 0;
+    padding: 18px 16px calc(16px + env(safe-area-inset-bottom)); }
+  .sheetBody h3 { margin: 0 0 4px; font-size: 18px; }
   .sheetBody p { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
   .opt { display: flex; gap: 12px; align-items: center; width: 100%; text-align: left; padding: 11px 12px; margin-bottom: 7px;
-    background: var(--panel2); border: none; border-radius: 12px; color: var(--text); font-size: 15px; }
-  .opt b { min-width: 26px; height: 26px; border-radius: 50%; background: var(--accent); display: inline-flex;
+    background: var(--panel2); border: none; border-radius: 14px; color: var(--text); font-family: inherit; font-size: 15px; }
+  .opt b { min-width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #2A1A05; display: inline-flex;
     align-items: center; justify-content: center; font-size: 14px; }
-  .skip { width: 100%; padding: 12px; background: none; border: none; color: var(--muted); font-size: 14px; text-decoration: underline; }
+  .skip { width: 100%; padding: 12px; background: none; border: none; color: var(--muted); font-family: inherit; font-size: 14px; text-decoration: underline; }
 </style>
 </head>
 <body>
 <header>
-  <h1>Bamnun 밤눈</h1>
+  <div class="brand"><svg width="30" height="30" viewBox="0 0 120 120" aria-hidden="true"><polygon points="26,38 32,12 54,30" fill="#2A3566"/><polygon points="94,38 88,12 66,30" fill="#2A3566"/><ellipse cx="60" cy="68" rx="40" ry="44" fill="#2A3566"/><circle cx="44" cy="58" r="14" fill="#F2B84B"/><circle cx="76" cy="58" r="14" fill="#F2B84B"/><circle cx="44" cy="58" r="6" fill="#0A0F1F"/><circle cx="76" cy="58" r="6" fill="#0A0F1F"/><polygon points="55,70 65,70 60,82" fill="#E8A33A"/></svg>Bamnun <span>밤눈</span></div>
   <span class="pill"><span class="dot" id="bleDot"></span><span id="bleText">Pi not connected</span></span>
 </header>
 <div id="toast"></div>
@@ -93,13 +103,35 @@
   <!-- DRIVE -->
   <section id="tab-drive" class="active">
     <div class="stage s-none" id="stageBox">
+      <svg class="owl" viewBox="0 0 120 120" role="img" aria-label="Bamnun owl">
+      <circle id="oglow" cx="60" cy="62" r="56" fill="#F2B84B" fill-opacity=".09"/>
+      <polygon points="26,38 32,12 54,30" fill="#2A3566"/><polygon points="94,38 88,12 66,30" fill="#2A3566"/>
+      <ellipse cx="60" cy="68" rx="40" ry="44" fill="#2A3566"/>
+      <circle cx="44" cy="58" r="19" fill="#1A2247"/><circle cx="76" cy="58" r="19" fill="#1A2247"/>
+      <circle id="oringL" cx="44" cy="58" r="14.5" fill="none" stroke="#9AA3C4" stroke-width="1.6"/>
+      <circle id="oringR" cx="76" cy="58" r="14.5" fill="none" stroke="#9AA3C4" stroke-width="1.6"/>
+      <circle cx="44" cy="58" r="12" fill="#F2B84B"/><circle cx="76" cy="58" r="12" fill="#F2B84B"/>
+      <circle id="opupL" cx="44" cy="58" r="5" fill="#0A0F1F"/><circle id="opupR" cx="76" cy="58" r="5" fill="#0A0F1F"/>
+      <circle cx="46.6" cy="55.4" r="1.8" fill="#fff"/><circle cx="78.6" cy="55.4" r="1.8" fill="#fff"/>
+      <rect id="olidL" x="29" y="43" width="30" height="0" fill="#1A2247"/><rect id="olidR" x="61" y="43" width="30" height="0" fill="#1A2247"/>
+      <path id="oshut" d="M33 62 Q44 69 55 62 M65 62 Q76 69 87 62" stroke="#FF6B7A" stroke-width="3" fill="none" stroke-linecap="round" style="display:none"/>
+      <polygon points="55,68 65,68 60,80" fill="#E8A33A"/>
+      <path d="M44 92 q6 6 12 0 M64 92 q6 6 12 0 M54 100 q6 6 12 0" stroke="#3A4780" stroke-width="2" fill="none" stroke-linecap="round"/>
+    </svg>
       <div class="main" id="stageMain">Pi not connected</div>
       <div class="sub" id="stageSub"></div>
     </div>
-    <div class="ctx" id="ctxLine">Not driving</div>
+    <div class="ctx">
+      <div><small>Driving</small><b id="ctxDrive">&mdash;</b></div>
+      <div><small>Last break</small><b id="ctxBreak">&mdash;</b></div>
+      <div><small>Next rest</small><b id="ctxNext">&mdash;</b></div>
+    </div>
     <div class="banner" id="fixedBanner">Indoor test: location is fixed (not real GPS)</div>
     <div id="map"></div>
-    <div class="stop" id="stopBox" style="display:none"></div>
+    <div class="stop" id="stopBox">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h12v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5Z"/><path d="M16 10h2a2 2 0 0 1 0 5h-2"/><path d="M8 3v3M12 3v3"/></svg>
+      <span id="stopText"></span>
+    </div>
     <div class="controls">
       <button id="btnBle">Connect Pi</button>
       <button id="btnTrip" class="primary">Start trip</button>
@@ -154,9 +186,9 @@
 </main>
 
 <nav>
-  <button data-tab="drive" class="active">Drive</button>
-  <button data-tab="trips">Trips &amp; advice</button>
-  <button data-tab="settings">Settings</button>
+  <button data-tab="drive" class="active"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 L20 21 L12 17 L4 21 Z"/></svg>Drive</button>
+  <button data-tab="trips"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V5M19 20v-7"/></svg>Trips</button>
+  <button data-tab="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Settings</button>
 </nav>
 
 <div class="sheet" id="sheet"><div class="sheetBody" id="sheetBody"></div></div>
@@ -837,8 +869,8 @@ function renderMapPos() {
 function renderStop() {
   const box = $("stopBox"), s = S.suggestedStop;
   if (!s) { box.style.display = "none"; if (stopMarker) { map.removeLayer(stopMarker); stopMarker = null; } S.stopKey = ""; return; }
-  box.style.display = "block";
-  box.textContent = `☕ ${s.name}${s.kind === "shelter" ? " 졸음쉼터" : ""}${s.road ? " (" + s.road + ")" : ""} — ${s.distanceKm.toFixed(1)} km away`;
+  box.style.display = "flex";
+  $("stopText").textContent = `${s.name}${s.kind === "shelter" ? " 졸음쉼터" : ""}${s.road ? " (" + s.road + ")" : ""} — ${s.distanceKm.toFixed(1)} km away`;
   const key = s.name + s.lat + s.lon;
   if (key === S.stopKey) return;
   S.stopKey = key;
@@ -847,26 +879,40 @@ function renderStop() {
   stopMarker = L.marker([s.lat, s.lon], { icon }).addTo(map);
   const f = currentFix(); if (f) map.fitBounds([[f.lat, f.lon], [s.lat, s.lon]], { padding: [40, 40] });
 }
+const STAGE_COLORS = ["#5FD3A5", "#A9D96B", "#F2B84B", "#FF9A4D", "#FF6B7A"];
+const LID_H = [0, 8, 13, 19, 30];
+function setOwl(stage) {   // owl eyes mirror the stage: stage === null means no signal
+  const none = stage === null, st = none ? 0 : stage;
+  const col = none ? "#9AA3C4" : STAGE_COLORS[st];
+  for (const id of ["oringL", "oringR"]) $(id).setAttribute("stroke", col);
+  for (const id of ["olidL", "olidR"]) $(id).setAttribute("height", String(none ? 0 : LID_H[st]));
+  $("oshut").style.display = !none && st === 4 ? "inline" : "none";
+  for (const id of ["opupL", "opupR"]) $(id).setAttribute("cy", st >= 3 ? "60" : "58");
+  $("oglow").setAttribute("fill", col);
+}
 function renderStage() {
   const box = $("stageBox");
   const fresh = S.last && Date.now() - S.last.ts < 5000;
   if (!fresh) {
     box.className = "stage s-none";
+    setOwl(null);
     $("stageMain").textContent = bleState === "connected" ? (S.last ? "No signal from Pi" : "Waiting for data...") : "Pi not connected";
     $("stageSub").textContent = ""; return;
   }
   const st = S.confirmed, info = STAGES[st];
   box.className = "stage s" + st;
-  $("stageMain").textContent = `Stage ${st} · ${info.name}`;
-  $("stageSub").textContent = `Estimated KSS ${info.kss} · PERCLOS ${S.last.perclos.toFixed(0)}% · EAR ${S.last.ear.toFixed(2)}`;
+  setOwl(st);
+  $("stageMain").textContent = `Stage ${st} \u00b7 ${info.name}`;
+  $("stageSub").textContent = `Estimated KSS ${info.kss} \u00b7 PERCLOS ${S.last.perclos.toFixed(0)}% \u00b7 EAR ${S.last.ear.toFixed(2)}`;
 }
 function renderContext() {
-  const el = $("ctxLine");
-  if (!S.trip) { el.textContent = "Not driving"; return; }
-  const now = Date.now();
-  const drive = fmtShort((now - S.drivingSince) / 60000);
-  const brk = S.lastBreakAt ? `last break ${fmtShort((now - S.lastBreakAt) / 60000)} ago` : "no break yet";
-  el.textContent = `Driving ${drive} · ${brk}`;
+  const set = (id, v) => { $(id).textContent = v; };
+  if (!S.trip) { set("ctxDrive", "\u2014"); set("ctxBreak", "\u2014"); set("ctxNext", "\u2014"); return; }
+  const now = Date.now(), driving = (now - S.drivingSince) / 60000;
+  set("ctxDrive", fmtShort(driving));
+  set("ctxBreak", S.lastBreakAt ? fmtShort((now - S.lastBreakAt) / 60000) + " ago" : "none yet");
+  const left = settings.breakReminderMin - driving;
+  set("ctxNext", left > 0 ? "in " + fmtShort(left) : "now");
 }
 function fmtDate(ts) { const d = new Date(ts), p = (n) => String(n).padStart(2, "0"); return `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`; }
 function renderTrips() {
