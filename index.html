@@ -1,0 +1,868 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#101522">
+<title>Bamnun 밤눈</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<style>
+  :root {
+    --bg: #101522; --panel: #182036; --panel2: #1f2a47; --text: #e8ecf5;
+    --muted: #8d97b3; --accent: #5b7cff; --ok: #3ddc97; --warn: #ffc247; --orange: #ff9b3d; --bad: #ff5d6c;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, "Noto Sans KR", sans-serif; }
+  body { display: flex; flex-direction: column; height: 100dvh;
+    padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+  header { display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; background: var(--panel); gap: 8px; }
+  header h1 { font-size: 17px; margin: 0; }
+  .pill { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: var(--panel2); white-space: nowrap; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; background: var(--muted); }
+  nav { display: flex; background: var(--panel); border-top: 1px solid #0003; }
+  nav button { flex: 1; padding: 12px 0; background: none; border: none; color: var(--muted);
+    font-size: 14px; border-bottom: 3px solid transparent; }
+  nav button.active { color: var(--text); border-bottom-color: var(--accent); }
+  main { flex: 1; min-height: 0; position: relative; }
+  section { display: none; height: 100%; }
+  section.active { display: flex; flex-direction: column; }
+  #map { flex: 1; min-height: 140px; }
+  .stage { text-align: center; padding: 10px 12px 8px; background: var(--panel2); }
+  .stage .main { font-size: 20px; font-weight: 700; letter-spacing: .3px; }
+  .stage .sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .stage.s-none .main { color: var(--muted); }
+  .stage.s0 .main { color: var(--ok); }
+  .stage.s1 .main { color: #b9e36a; }
+  .stage.s2 { background: #ffc24722; } .stage.s2 .main { color: var(--warn); }
+  .stage.s3 { background: #ff9b3d2b; } .stage.s3 .main { color: var(--orange); }
+  .stage.s4 { background: #ff5d6c33; } .stage.s4 .main { color: var(--bad); }
+  .ctx { font-size: 12px; color: var(--muted); text-align: center; padding: 5px 8px; background: var(--panel); }
+  .banner { background: #ffc24733; color: #ffd98a; font-size: 12px; text-align: center; padding: 4px; display: none; }
+  .stop { background: #ffc24722; padding: 10px 16px; font-size: 15px; }
+  .controls { display: flex; gap: 10px; padding: 10px 12px; background: var(--panel); }
+  .controls button { flex: 1; padding: 14px 8px; border-radius: 12px; border: none; font-size: 15px;
+    font-weight: 600; color: #fff; background: var(--panel2); }
+  .controls button.primary { background: var(--accent); }
+  .controls button.stopbtn { background: var(--bad); }
+  .scroll { overflow-y: auto; padding: 14px 16px 24px; flex: 1; }
+  .card { background: var(--panel); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+  .card h3 { margin: 0 0 6px; font-size: 15px; }
+  .card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
+  .stats { display: flex; justify-content: space-around; text-align: center; }
+  .stats b { display: block; font-size: 22px; } .stats span { font-size: 12px; color: var(--muted); }
+  h2 { font-size: 15px; margin: 18px 0 8px; color: var(--muted); font-weight: 600; }
+  .trip { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #ffffff12; font-size: 14px; }
+  label { display: block; font-size: 14px; margin: 14px 0 6px; }
+  input[type=number], select { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #ffffff22;
+    background: var(--panel); color: var(--text); font-size: 16px; }
+  .row { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 14px; }
+  .row label { margin: 0; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 4px; line-height: 1.4; }
+  .btn { width: 100%; padding: 12px; border-radius: 10px; border: none; background: var(--panel2); color: var(--text);
+    font-size: 15px; margin-top: 10px; }
+  .link { background: none; border: none; color: var(--bad); text-decoration: underline; font-size: 14px; margin-top: 18px; padding: 0; }
+  .disclaimer { color: var(--muted); font-size: 12px; margin-top: 20px; line-height: 1.5; }
+  #toast { position: fixed; left: 12px; right: 12px; top: calc(env(safe-area-inset-top) + 56px); z-index: 2000;
+    background: #000c; color: #fff; padding: 10px 14px; border-radius: 10px; font-size: 14px; display: none; }
+  .arrow { font-size: 30px; line-height: 30px; text-align: center; color: #5b7cff; text-shadow: 0 0 4px #000; }
+  .stopicon { font-size: 28px; line-height: 28px; text-align: center; }
+  .sheet { position: fixed; inset: 0; background: #000a; z-index: 3000; display: none; align-items: flex-end; }
+  .sheetBody { background: var(--panel); width: 100%; max-height: 88dvh; overflow: auto; border-radius: 18px 18px 0 0;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); }
+  .sheetBody h3 { margin: 0 0 4px; font-size: 17px; }
+  .sheetBody p { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+  .opt { display: flex; gap: 12px; align-items: center; width: 100%; text-align: left; padding: 11px 12px; margin-bottom: 7px;
+    background: var(--panel2); border: none; border-radius: 12px; color: var(--text); font-size: 15px; }
+  .opt b { min-width: 26px; height: 26px; border-radius: 50%; background: var(--accent); display: inline-flex;
+    align-items: center; justify-content: center; font-size: 14px; }
+  .skip { width: 100%; padding: 12px; background: none; border: none; color: var(--muted); font-size: 14px; text-decoration: underline; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Bamnun 밤눈</h1>
+  <span class="pill"><span class="dot" id="bleDot"></span><span id="bleText">Pi not connected</span></span>
+</header>
+<div id="toast"></div>
+
+<main>
+  <!-- DRIVE -->
+  <section id="tab-drive" class="active">
+    <div class="stage s-none" id="stageBox">
+      <div class="main" id="stageMain">Pi not connected</div>
+      <div class="sub" id="stageSub"></div>
+    </div>
+    <div class="ctx" id="ctxLine">Not driving</div>
+    <div class="banner" id="fixedBanner">Indoor test: location is fixed (not real GPS)</div>
+    <div id="map"></div>
+    <div class="stop" id="stopBox" style="display:none"></div>
+    <div class="controls">
+      <button id="btnBle">Connect Pi</button>
+      <button id="btnTrip" class="primary">Start trip</button>
+    </div>
+  </section>
+
+  <!-- TRIPS -->
+  <section id="tab-trips">
+    <div class="scroll" id="tripsBox"></div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="tab-settings">
+    <div class="scroll">
+      <label for="setConfirm">Confirm a stage after (seconds)</label>
+      <input type="number" id="setConfirm" min="1" max="10">
+      <div class="hint">How long a higher stage must hold before the app reacts. Shorter is quicker, longer means fewer false alarms.</div>
+      <label for="setBreak">Break reminder after continuous driving (minutes)</label>
+      <input type="number" id="setBreak" min="30" max="240">
+      <div class="hint">The Korea Expressway "Rest Point" idea: a 15-minute rest after about 2 hours of driving.</div>
+      <label for="setRadius">Rest stop search radius (km)</label>
+      <input type="number" id="setRadius" min="2" max="60">
+      <div class="row"><input type="checkbox" id="setVoice"><label for="setVoice">Spoken messages</label></div>
+      <div class="row"><input type="checkbox" id="setTones"><label for="setTones">Phone warning tones (stages 3 and 4)</label></div>
+      <div class="hint">The calibrated alarms are on the Pi. Phone tones are a softer extra.</div>
+
+      <h2>Indoor test location</h2>
+      <div class="row"><input type="checkbox" id="setFixedOn"><label for="setFixedOn">Use a fixed location instead of GPS</label></div>
+      <div class="hint">For indoor demos only. It does not change any alert, only where the rest stop search starts. Say so when presenting.</div>
+      <div class="grid2">
+        <div><label for="setLat">Latitude</label><input type="number" id="setLat" step="0.0001"></div>
+        <div><label for="setLon">Longitude</label><input type="number" id="setLon" step="0.0001"></div>
+        <div><label for="setHeading">Heading (0-359)</label><input type="number" id="setHeading" min="0" max="359"></div>
+        <div><label for="setSpeed">Speed (km/h)</label><input type="number" id="setSpeed" min="0" max="200"></div>
+      </div>
+      <button class="btn" id="btnHere">Fix at my current location</button>
+
+      <h2>Data</h2>
+      <button class="btn" id="btnExport">Export data (CSV)</button>
+      <button class="btn" id="btnCopy">Copy CSV text</button>
+      <button class="link" id="btnClear">Delete all trip data</button>
+      <p class="disclaimer">Bamnun is an assistive tool and not a medical device. It cannot guarantee that you will be warned in time.
+        Estimated KSS values come from the camera and are approximations. If you feel sleepy, stop driving.</p>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button data-tab="drive" class="active">Drive</button>
+  <button data-tab="trips">Trips &amp; advice</button>
+  <button data-tab="settings">Settings</button>
+</nav>
+
+<div class="sheet" id="sheet"><div class="sheetBody" id="sheetBody"></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+"use strict";
+/* ============================================================
+   Bamnun web app v2 (Step 1)
+   Pi message: "<stage>,<perclos_pct>,<ear>,<yawn>,<nod>"
+   ============================================================ */
+const SERVICE = "b4a10001-5c1e-4d6e-9a53-0a1b2c3d4e5f";
+const CHAR    = "b4a10002-5c1e-4d6e-9a53-0a1b2c3d4e5f";
+
+const $ = (id) => document.getElementById(id);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+function toast(msg, ms = 4000) {
+  const t = $("toast"); t.textContent = msg; t.style.display = "block";
+  clearTimeout(toast._t); toast._t = setTimeout(() => (t.style.display = "none"), ms);
+}
+function load(key, fallback) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; } }
+function save(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} }
+
+/* ---------- geo ---------- */
+const rad = (d) => (d * Math.PI) / 180, deg = (r) => (r * 180) / Math.PI;
+function distanceKm(lat1, lon1, lat2, lon2) {
+  const dLat = rad(lat2 - lat1), dLon = rad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(a));
+}
+function bearingDeg(lat1, lon1, lat2, lon2) {
+  const dLon = rad(lon2 - lon1);
+  const y = Math.sin(dLon) * Math.cos(rad(lat2));
+  const x = Math.cos(rad(lat1)) * Math.sin(rad(lat2)) - Math.sin(rad(lat1)) * Math.cos(rad(lat2)) * Math.cos(dLon);
+  return (deg(Math.atan2(y, x)) + 360) % 360;
+}
+function angleDiff(a, b) { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; }
+
+/* ---------- science constants ---------- */
+// Four-stage table from the team's literature review; stage -> estimated KSS.
+const STAGES = [
+  { name: "Alert",            kss: "5 or lower" },
+  { name: "A bit drowsy",     kss: "6" },
+  { name: "Drowsy",           kss: "7" },
+  { name: "Very drowsy",      kss: "8" },
+  { name: "Extremely drowsy", kss: "9" },
+];
+// Karolinska Sleepiness Scale, 9-point self-report
+const KSS_LABELS = [
+  "Extremely alert", "Very alert", "Alert", "Rather alert", "Neither alert nor sleepy",
+  "Some signs of sleepiness", "Sleepy, but no difficulty remaining awake",
+  "Sleepy, with some effort to keep awake", "Very sleepy, great effort to keep awake, fighting sleep",
+];
+const HOLD_DOWN_S = 8;                              // a stage must stay lower this long before we step down
+const COOLDOWN_MS = { 2: 240000, 3: 90000, 4: 30000 }; // minimum gap between spoken messages per stage
+const MIN_VOICE_GAP_MS = 8000;
+const REST_MS = 15 * 60000;                          // a 15-minute stop counts as a rest
+
+/* ---------- settings ---------- */
+const DEFAULTS = { confirmSec: 3, breakReminderMin: 120, radiusKm: 20, voiceOn: true, tonesOn: true,
+  fixed: { on: false, lat: 37.3826, lon: 126.6431, heading: 90, speed: 60 } };
+const savedSettings = load("bamnun2.settings", {});
+const settings = Object.assign({}, DEFAULTS, savedSettings, { fixed: Object.assign({}, DEFAULTS.fixed, savedSettings.fixed || {}) });
+function saveSettings() { save("bamnun2.settings", settings); }
+
+/* ---------- state ---------- */
+const S = {
+  trip: null, fix: null, prevFix: null, last: null,
+  confirmed: 0, buf: [],
+  lastSpoken: { 2: 0, 3: 0, 4: 0 }, lastAnyVoice: 0, busy: false, phraseLast: {},
+  suggestedStop: null, stopKey: "", stopCache: null,
+  stoppedSince: null, stoppedPrompted: false, restLogged: false, lastKssPrompt: 0,
+  drivingSince: 0, lastBreakAt: null, lastReminderAt: 0,
+  wakeLock: null, watchId: null, lastSampleT: 0, saveT: null, sheetKind: null,
+};
+
+/* ============================================================
+   AUDIO: soft looming tones + voice
+   ============================================================ */
+let audioCtx = null;
+function unlockAudio() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    if ("speechSynthesis" in window) { const u = new SpeechSynthesisUtterance(" "); u.volume = 0; speechSynthesis.speak(u); }
+  } catch {}
+}
+// Pulsed tones that rise gradually (looming), 500-1000 Hz.
+// Stage 3: 1 Hz pulses. Stage 4: 3 Hz pulses. The calibrated alarm stays on the Pi.
+function tone(stage) {
+  return new Promise((resolve) => {
+    if (!audioCtx) return resolve();
+    const cfg = stage >= 4 ? { f: 800, rate: 3, dur: 2.4, g0: 0.08, g1: 0.5, on: 0.17 }
+                           : { f: 700, rate: 1, dur: 3.0, g0: 0.05, g1: 0.3, on: 0.45 };
+    const t0 = audioCtx.currentTime + 0.05;
+    const n = Math.floor(cfg.dur * cfg.rate);
+    for (let i = 0; i < n; i++) {
+      const t = t0 + i / cfg.rate;
+      const peak = cfg.g0 + (cfg.g1 - cfg.g0) * (n > 1 ? i / (n - 1) : 1);
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = "sine"; o.frequency.value = cfg.f;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(peak, t + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + cfg.on);
+      o.connect(g).connect(audioCtx.destination); o.start(t); o.stop(t + cfg.on + 0.02);
+    }
+    setTimeout(resolve, cfg.dur * 1000 + 150);
+  });
+}
+function pickVoice() {
+  try { const v = speechSynthesis.getVoices(); return v.find((x) => x.lang === "en-US") || v.find((x) => x.lang && x.lang.startsWith("en")) || null; }
+  catch { return null; }
+}
+function speak(text) {
+  return new Promise((resolve) => {
+    if (!("speechSynthesis" in window)) return resolve();
+    try {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "en-US"; u.rate = 0.95;
+      const v = pickVoice(); if (v) u.voice = v;
+      u.onend = u.onerror = () => resolve();
+      speechSynthesis.speak(u);
+      setTimeout(resolve, 15000);
+    } catch { resolve(); }
+  });
+}
+
+/* ============================================================
+   PHRASES (English). Gain-framed, polite, no numbers about risk.
+   Every warning that can names a real rest stop (a concrete action).
+   ============================================================ */
+const PHRASES = {
+  2: {
+    stop: ["You're doing well. A short break at {stop}, {dist} ahead, will keep you fresh.",
+           "Feeling a little tired? A quick rest at {stop}, {dist} ahead, helps you stay sharp.",
+           "A short pause at {stop}, {dist} ahead, helps you arrive safe and refreshed."],
+    nostop: ["A short break soon will keep you fresh. Keep an eye out for a safe place to rest.",
+             "A quick rest will help you stay sharp. A safe place to stop would be a good idea."],
+  },
+  3: {
+    stop: ["Let's take a break at {stop}, {dist} ahead. Fifteen minutes will leave you refreshed for a safe trip.",
+           "{stop} is {dist} ahead. A short rest there will help you finish the trip safe and sharp.",
+           "A rest at {stop}, {dist} ahead, is a great idea. You'll feel fresh and ready after fifteen minutes."],
+    nostop: ["Let's find a safe place to rest soon. Fifteen minutes will leave you refreshed.",
+             "A short rest will help you finish the trip safe and sharp. Let's stop at the next safe place."],
+  },
+  4: {
+    stop: ["Let's rest now. {stop} is {dist} ahead, and a short break will keep everyone safe.",
+           "Let's pull in at {stop}, {dist} ahead. A quick rest will get you there safe and well.",
+           "Time for a rest. {stop}, {dist} ahead, is the place to refresh and keep everyone safe."],
+    nostop: ["Let's rest now. Let's pull over at the next safe place. A short break will refresh you.",
+             "Time for a rest. The next safe place is a good spot to refresh and stay safe."],
+  },
+  reminder: {
+    stop: ["You've been driving for {mins}. A fifteen minute break at {stop}, {dist} ahead, keeps you fresh for the rest of the trip."],
+    nostop: ["You've been driving for {mins}. A fifteen minute break keeps you fresh for the rest of the trip."],
+  },
+  rested: {
+    nostop: ["Great rest. You're refreshed and ready. Have a safe trip.", "Nice break. You're ready for the road. Safe travels."],
+  },
+};
+function spokenDistance(km) {
+  if (km < 1) return `${Math.max(100, Math.round(km * 10) * 100)} meters`;
+  return `${km < 10 ? km.toFixed(1) : String(Math.round(km))} kilometers`;
+}
+function fmtDuration(min) {
+  const m = Math.round(min);
+  if (m < 60) return `${m} minutes`;
+  const h = Math.floor(m / 60), r = m % 60;
+  return `${h} ${h === 1 ? "hour" : "hours"}` + (r ? ` ${r} minutes` : "");
+}
+function fmtShort(min) { const m = Math.round(min); return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`; }
+function pick(key, arr) {
+  const last = S.phraseLast[key]; let i;
+  do { i = Math.floor(Math.random() * arr.length); } while (arr.length > 1 && i === last);
+  S.phraseLast[key] = i; return arr[i];
+}
+function cleanName(n) { return String(n || "").replace(/[<>{}]/g, "").trim() || "the rest area"; }
+function phrase(kind, stop, extra) {
+  const P = PHRASES[kind];
+  const arr = stop && P.stop ? P.stop : P.nostop;
+  const vars = Object.assign({ stop: stop ? cleanName(stop.name) : "", dist: stop ? spokenDistance(stop.distanceKm) : "" }, extra || {});
+  return pick(kind + (stop ? "S" : "N"), arr).replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? vars[k] : ""));
+}
+
+/* ============================================================
+   BLE (Web Bluetooth in the Bluefy browser)
+   ============================================================ */
+let bleDevice = null, wantBle = false, bleState = "idle";
+function setBle(state) {
+  bleState = state;
+  const map = { idle: ["Pi not connected", "#8d97b3"], connecting: ["Connecting...", "#ffc247"],
+    connected: ["Pi connected", "#3ddc97"], error: ["Connection problem", "#ff5d6c"] };
+  const [text, color] = map[state];
+  $("bleText").textContent = text; $("bleDot").style.background = color;
+  $("btnBle").textContent = state === "connected" ? "Disconnect" : "Connect Pi";
+  renderStage();
+}
+async function connectBle() {
+  unlockAudio();
+  if (!navigator.bluetooth) { toast("Bluetooth is not available in this browser. Open this page in the Bluefy browser.", 7000); return; }
+  try {
+    setBle("connecting");
+    bleDevice = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [SERVICE] });
+    bleDevice.addEventListener("gattserverdisconnected", onBleDisconnected);
+    wantBle = true;
+    await attachBle();
+  } catch (e) { setBle("error"); toast("Could not connect: " + (e && e.message ? e.message : e), 6000); }
+}
+async function attachBle() {
+  const server = await bleDevice.gatt.connect();
+  const svc = await server.getPrimaryService(SERVICE);
+  const ch = await svc.getCharacteristic(CHAR);
+  ch.addEventListener("characteristicvaluechanged", (ev) => {
+    const e = parseEvent(new TextDecoder().decode(ev.target.value));
+    if (e) onEvent(e);
+  });
+  await ch.startNotifications();
+  setBle("connected");
+}
+function onBleDisconnected() {
+  if (!wantBle) { setBle("idle"); return; }
+  setBle("connecting");
+  setTimeout(async () => { try { await attachBle(); } catch { if (wantBle) onBleDisconnected(); } }, 3000);
+}
+function disconnectBle() {
+  wantBle = false;
+  try { if (bleDevice && bleDevice.gatt.connected) bleDevice.gatt.disconnect(); } catch {}
+  setBle("idle");
+}
+function parseEvent(raw) {
+  const p = String(raw).trim().split(",");
+  if (p.length !== 5) return null;
+  const stage = parseInt(p[0], 10), perclos = parseFloat(p[1]), ear = parseFloat(p[2]), yawn = parseInt(p[3], 10), nod = parseInt(p[4], 10);
+  if ([stage, perclos, ear, yawn, nod].some(Number.isNaN) || stage < 0 || stage > 4) return null;
+  return { ts: Date.now(), stage, perclos: clamp(perclos, 0, 100), ear: clamp(ear, 0, 1), yawn: yawn === 1, nod: nod === 1 };
+}
+
+/* ============================================================
+   STAGE ENGINE: smoothing so one noisy second does not trigger anything.
+   Up: the stage must hold for confirmSec seconds (stage 4: at most 2 s).
+   Down: the stage must stay lower for HOLD_DOWN_S seconds.
+   ============================================================ */
+function windowStat(buf, now, sec, fn) {
+  const w = buf.filter((x) => now - x.t <= sec * 1000);
+  if (!w.length || now - w[0].t < sec * 1000 - 1200) return null; // not enough history yet
+  return fn(...w.map((x) => x.s));
+}
+function pushRaw(e) {
+  const now = e.ts;
+  S.buf.push({ t: now, s: e.stage });
+  const keep = Math.max(settings.confirmSec, HOLD_DOWN_S) * 1000 + 2000;
+  while (S.buf.length && now - S.buf[0].t > keep) S.buf.shift();
+  const prev = S.confirmed;
+  let next = prev;
+  const fast4 = windowStat(S.buf, now, Math.min(settings.confirmSec, 2), Math.min);
+  if (fast4 === 4) next = 4;
+  const up = windowStat(S.buf, now, settings.confirmSec, Math.min);
+  if (up != null && up > next) next = up;
+  if (next === prev) {
+    const down = windowStat(S.buf, now, HOLD_DOWN_S, Math.max);
+    if (down != null && down < prev) next = down;
+  }
+  return { prev, next };
+}
+function onEvent(e) {
+  S.last = e;
+  const { prev, next } = pushRaw(e);
+  S.confirmed = next;
+  const f = currentFix();
+  if (S.trip) {
+    if (next !== prev) {
+      S.trip.stageEvents.push({ t: e.ts, from: prev, to: next, perclos: e.perclos,
+        lat: f ? +f.lat.toFixed(5) : null, lon: f ? +f.lon.toFixed(5) : null });
+      scheduleSave();
+    }
+    const gap = e.stage >= 1 ? 1000 : 5000;
+    if (e.ts - S.lastSampleT >= gap) {
+      S.lastSampleT = e.ts;
+      if (S.trip.samples.length < 20000)
+        S.trip.samples.push([e.ts, e.stage, next, +e.perclos.toFixed(1), +e.ear.toFixed(2),
+          f ? +f.lat.toFixed(5) : null, f ? +f.lon.toFixed(5) : null, f ? Math.round(f.speedKmh) : null]);
+      scheduleSave();
+    }
+  }
+  announceIfNeeded(e.ts);
+  renderStage();
+}
+
+/* ============================================================
+   WARNINGS: voice (+ tones at stage 3-4) with a concrete rest stop
+   Stage 1 is silent on purpose (the Pi handles it; sound would only annoy).
+   ============================================================ */
+function announceIfNeeded(now) {
+  if (!S.trip) return;
+  const st = S.confirmed;
+  if (st < 2) return;
+  if (now - (S.lastSpoken[st] || 0) < COOLDOWN_MS[st]) return;
+  if (now - S.lastAnyVoice < MIN_VOICE_GAP_MS || S.busy) return;
+  S.lastSpoken[st] = now; S.lastAnyVoice = now;
+  warn(st);
+}
+async function warn(stage) {
+  S.busy = true;
+  try {
+    const stopP = getStop(4000);
+    const toneP = settings.tonesOn && stage >= 3 ? tone(stage) : Promise.resolve();
+    const [stop] = await Promise.all([stopP, toneP]);
+    S.suggestedStop = stop; renderStop();
+    const text = phrase(stage, stop);
+    if (S.trip) { S.trip.warnings.push({ t: Date.now(), stage, kind: "warning", stop: stop ? cleanName(stop.name) : "",
+      lat: currentFix() ? +currentFix().lat.toFixed(5) : null, lon: currentFix() ? +currentFix().lon.toFixed(5) : null }); scheduleSave(); }
+    if (settings.voiceOn) await speak(text);
+  } catch { if (settings.voiceOn) await speak("A short rest will keep you fresh. A safe place to stop would be a good idea."); }
+  finally { S.busy = false; }
+}
+async function remind(drivingMin) {
+  S.busy = true;
+  try {
+    const stop = await getStop(4000);
+    S.suggestedStop = stop; renderStop();
+    if (S.trip) { S.trip.warnings.push({ t: Date.now(), stage: 0, kind: "reminder", stop: stop ? cleanName(stop.name) : "", lat: null, lon: null }); scheduleSave(); }
+    if (settings.voiceOn) await speak(phrase("reminder", stop, { mins: fmtDuration(drivingMin) }));
+  } catch {} finally { S.busy = false; }
+}
+
+/* ============================================================
+   REST STOPS (OpenStreetMap through Overpass), cached for a minute
+   ============================================================ */
+async function findRestStops(lat, lon, radiusKm) {
+  const r = Math.round(radiusKm * 1000);
+  const q = `[out:json][timeout:15];(
+    node(around:${r},${lat},${lon})["highway"="rest_area"];
+    way(around:${r},${lat},${lon})["highway"="rest_area"];
+    node(around:${r},${lat},${lon})["highway"="services"];
+    way(around:${r},${lat},${lon})["highway"="services"];
+    node(around:${r},${lat},${lon})["amenity"="fuel"];
+  );out center tags;`;
+  const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 20000);
+  try {
+    const res = await fetch("https://overpass-api.de/api/interpreter", { method: "POST", body: new URLSearchParams({ data: q }), signal: ctrl.signal });
+    if (!res.ok) return [];
+    const json = await res.json(); const out = [];
+    for (const el of json.elements || []) {
+      const tags = el.tags || {};
+      const sLat = el.lat ?? (el.center && el.center.lat), sLon = el.lon ?? (el.center && el.center.lon);
+      if (sLat == null || sLon == null) continue;
+      out.push({ name: tags["name:en"] || tags.name || (tags.amenity === "fuel" ? "Gas station" : "Rest area"), lat: sLat, lon: sLon });
+    }
+    return out;
+  } finally { clearTimeout(to); }
+}
+function pickAhead(stops, fix) {
+  if (!stops || !stops.length) return null;
+  const rel = stops.map((s) => ({ name: s.name, lat: s.lat, lon: s.lon,
+    distanceKm: distanceKm(fix.lat, fix.lon, s.lat, s.lon), bearing: bearingDeg(fix.lat, fix.lon, s.lat, s.lon) }));
+  rel.sort((a, b) => a.distanceKm - b.distanceKm);
+  const ahead = rel.filter((s) => angleDiff(s.bearing, fix.heading) <= 70);
+  return ahead.length ? ahead[0] : rel[0];
+}
+async function getStop(timeoutMs) {
+  const f = currentFix(); if (!f) return null;
+  const c = S.stopCache;
+  if (c && Date.now() - c.time < 60000 && distanceKm(c.lat, c.lon, f.lat, f.lon) < 1) return pickAhead(c.stops, f);
+  const p = findRestStops(f.lat, f.lon, settings.radiusKm)
+    .then((stops) => { S.stopCache = { lat: f.lat, lon: f.lon, time: Date.now(), stops }; return pickAhead(stops, f); })
+    .catch(() => null);
+  return Promise.race([p, sleep(timeoutMs).then(() => null)]);
+}
+
+/* ============================================================
+   GPS, stop detection, rest tracking, break reminder
+   ============================================================ */
+function currentFix() {
+  if (settings.fixed.on) return { lat: settings.fixed.lat, lon: settings.fixed.lon, heading: settings.fixed.heading, speedKmh: settings.fixed.speed, t: Date.now() };
+  return S.fix;
+}
+function startGps() {
+  if (settings.fixed.on) return;
+  if (!navigator.geolocation) { toast("GPS is not available in this browser."); return; }
+  S.watchId = navigator.geolocation.watchPosition((p) => {
+    const c = p.coords;
+    const speedKmh = c.speed != null && c.speed >= 0 ? c.speed * 3.6 : 0;
+    let heading = c.heading != null && !Number.isNaN(c.heading) && speedKmh > 5 ? c.heading : null;
+    if (heading == null && S.prevFix && distanceKm(S.prevFix.lat, S.prevFix.lon, c.latitude, c.longitude) > 0.005)
+      heading = bearingDeg(S.prevFix.lat, S.prevFix.lon, c.latitude, c.longitude);
+    if (heading == null) heading = S.fix ? S.fix.heading : 0;
+    const fix = { lat: c.latitude, lon: c.longitude, speedKmh, heading, acc: c.accuracy, t: Date.now() };
+    if (S.prevFix && S.trip && c.accuracy < 50) S.trip.distanceKm += distanceKm(S.prevFix.lat, S.prevFix.lon, fix.lat, fix.lon);
+    S.prevFix = fix; S.fix = fix; renderMapPos();
+  }, (err) => toast("GPS error: " + err.message, 6000), { enableHighAccuracy: true, maximumAge: 1000, timeout: 20000 });
+}
+function stopGps() { if (S.watchId != null) navigator.geolocation.clearWatch(S.watchId); S.watchId = null; S.prevFix = null; }
+async function keepAwake() { try { if ("wakeLock" in navigator) S.wakeLock = await navigator.wakeLock.request("screen"); } catch {} }
+function releaseAwake() { try { if (S.wakeLock) S.wakeLock.release(); } catch {} S.wakeLock = null; }
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && S.trip) keepAwake(); });
+
+function effectiveSpeed(now) {
+  if (!S.fix) return null;
+  if (now - S.fix.t < 20000) return S.fix.speedKmh;
+  return S.fix.speedKmh < 5 ? 0 : null; // no updates while moving fast (tunnel): unknown, do not assume stopped
+}
+function handleStops(now) {
+  const v = effectiveSpeed(now);
+  if (v == null) return;
+  if (v < 3) {
+    if (!S.stoppedSince) S.stoppedSince = now;
+    const dur = now - S.stoppedSince;
+    if (dur >= 60000 && !S.stoppedPrompted && now - S.lastKssPrompt > 30 * 60000) { S.stoppedPrompted = true; S.lastKssPrompt = now; openKss("stopped"); }
+    if (dur >= REST_MS && !S.restLogged) { S.restLogged = true; logRest(now); }
+  } else if (v >= 5) {
+    S.stoppedSince = null; S.stoppedPrompted = false; S.restLogged = false;
+    if (v > 10 && S.sheetKind) closeSheet();
+  }
+}
+function logRest(now) {
+  const f = currentFix();
+  S.trip.rests.push({ t: now, minutes: 15, lat: f ? +f.lat.toFixed(5) : null, lon: f ? +f.lon.toFixed(5) : null });
+  S.lastBreakAt = now; S.drivingSince = now; S.lastReminderAt = now; S.suggestedStop = null; renderStop(); scheduleSave();
+  if (settings.voiceOn && !S.busy) { S.lastAnyVoice = now; speak(phrase("rested", null)); }
+}
+function handleReminder(now) {
+  if (S.confirmed >= 3 || S.busy) return;
+  const driving = (now - S.drivingSince) / 60000;
+  if (driving >= settings.breakReminderMin && now - S.lastReminderAt >= settings.breakReminderMin * 60000 && now - S.lastAnyVoice > MIN_VOICE_GAP_MS) {
+    S.lastReminderAt = now; S.lastAnyVoice = now; remind(driving);
+  }
+}
+function tick() {
+  const now = Date.now();
+  if (S.trip) {
+    if (!settings.fixed.on) handleStops(now);
+    handleReminder(now);
+    if (S.sheetKind && !settings.fixed.on) { const v = effectiveSpeed(now); if (v != null && v > 10) closeSheet(); }
+  }
+  renderStage(); renderContext();
+}
+setInterval(tick, 5000);
+
+/* ============================================================
+   TRIPS + STORAGE
+   ============================================================ */
+let trips = load("bamnun2.trips", []);
+function persistTrips() {
+  trips = trips.slice(0, 100);
+  const write = () => localStorage.setItem("bamnun2.trips", JSON.stringify(trips));
+  try { write(); return; } catch {}
+  for (let i = trips.length - 1; i >= 1; i--) {   // storage full: drop samples of older trips first
+    if (trips[i].samples && trips[i].samples.length) { trips[i].samples = []; try { write(); return; } catch {} }
+  }
+  try { trips = trips.slice(0, 20); write(); } catch {}
+}
+function scheduleSave() { if (!S.saveT) S.saveT = setTimeout(() => { S.saveT = null; persistTrips(); }, 3000); }
+window.addEventListener("pagehide", () => { if (S.trip) persistTrips(); });
+
+function newTrip(now) {
+  return { id: now, start: now, end: null, distanceKm: 0, shiftRest: null, samples: [], stageEvents: [], warnings: [], kss: [], rests: [] };
+}
+function startTrip() {
+  unlockAudio(); keepAwake();
+  const now = Date.now();
+  const needShift = !trips.length || now - trips[0].start > 8 * 3600 * 1000;
+  S.trip = newTrip(now); trips.unshift(S.trip);
+  S.confirmed = 0; S.buf = []; S.drivingSince = now; S.lastBreakAt = null; S.lastReminderAt = now;
+  S.lastSpoken = { 2: 0, 3: 0, 4: 0 }; S.lastAnyVoice = 0; S.busy = false;
+  S.stoppedSince = null; S.stoppedPrompted = false; S.restLogged = false; S.lastKssPrompt = 0;
+  S.suggestedStop = null; S.stopCache = null; S.lastSampleT = 0;
+  persistTrips(); startGps(); renderAll();
+  if (needShift) openShift(S.trip);
+}
+function endTrip() {
+  const t = S.trip; t.end = Date.now(); S.trip = null;
+  stopGps(); releaseAwake(); persistTrips(); S.suggestedStop = null; closeSheet(); renderAll();
+  openKss("end", t);
+}
+
+/* ---------- sheets (KSS and shift check) ---------- */
+function openSheet({ title, sub, items, onPick, kind }) {
+  const body = $("sheetBody"); body.innerHTML = "";
+  const h = document.createElement("h3"); h.textContent = title;
+  const p = document.createElement("p"); p.textContent = sub;
+  body.append(h, p);
+  for (const it of items) {
+    const b = document.createElement("button"); b.className = "opt";
+    const n = document.createElement("b"); n.textContent = it.badge;
+    const s = document.createElement("span"); s.textContent = it.label;
+    b.append(n, s);
+    b.addEventListener("click", () => { onPick(it.v); closeSheet(); });
+    body.appendChild(b);
+  }
+  const skip = document.createElement("button"); skip.className = "skip"; skip.textContent = "Skip";
+  skip.addEventListener("click", closeSheet); body.appendChild(skip);
+  S.sheetKind = kind; $("sheet").style.display = "flex";
+}
+function closeSheet() { S.sheetKind = null; $("sheet").style.display = "none"; }
+function openKss(ctx, trip) {
+  const t = trip || S.trip; if (!t) return;
+  openSheet({ kind: "kss", title: "How sleepy do you feel right now?",
+    sub: ctx === "end" ? "Optional. One tap." : "Optional. You are stopped, so it is safe to answer.",
+    items: KSS_LABELS.map((l, i) => ({ v: i + 1, badge: String(i + 1), label: l })),
+    onPick: (v) => {
+      const f = currentFix();
+      t.kss.push({ t: Date.now(), kss: v, ctx, stage: S.confirmed, perclos: S.last ? S.last.perclos : null, ear: S.last ? S.last.ear : null,
+        lat: f ? +f.lat.toFixed(5) : null, lon: f ? +f.lon.toFixed(5) : null });
+      persistTrips(); toast("Saved. Thank you.");
+    } });
+}
+function openShift(trip) {
+  openSheet({ kind: "shift", title: "How rested do you feel today?", sub: "Optional. Asked once per shift.",
+    items: [{ v: "good", badge: "1", label: "Well rested" }, { v: "tired", badge: "2", label: "A bit tired" }, { v: "very", badge: "3", label: "Very tired" }],
+    onPick: (v) => { trip.shiftRest = v; persistTrips(); toast("Saved. Thank you."); } });
+}
+
+/* ============================================================
+   CSV EXPORT (for validating thresholds against self-reported KSS)
+   ============================================================ */
+const iso = (t) => new Date(t).toISOString();
+const estKss = (stage) => (stage >= 1 ? 5 + stage : "<=5");
+function csvCell(v) {
+  if (v == null) return "";
+  let s = String(v);
+  if (/^[=+\-@]/.test(s) && Number.isNaN(Number(s))) s = "'" + s;   // spreadsheet formula injection guard
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function buildCsv(list) {
+  const rows = [["trip_id", "type", "time_iso", "stage_raw", "stage_confirmed", "est_kss", "perclos_pct", "ear", "kss_self", "context", "lat", "lon", "speed_kmh", "note"]];
+  for (const t of (list || trips).slice().reverse()) {
+    for (const s of t.samples || []) rows.push([t.id, "sample", iso(s[0]), s[1], s[2], estKss(s[2]), s[3], s[4], "", "", s[5], s[6], s[7], ""]);
+    for (const k of t.kss || []) rows.push([t.id, "kss_self_report", iso(k.t), "", k.stage, estKss(k.stage), k.perclos, k.ear, k.kss, k.ctx, k.lat, k.lon, "", ""]);
+    for (const w of t.warnings || []) rows.push([t.id, w.kind, iso(w.t), "", w.stage, estKss(w.stage), "", "", "", "", w.lat, w.lon, "", w.stop]);
+    for (const r of t.rests || []) rows.push([t.id, "rest", iso(r.t), "", "", "", "", "", "", "", r.lat, r.lon, "", r.minutes + " min"]);
+    if (t.shiftRest) rows.push([t.id, "shift_rest", iso(t.start), "", "", "", "", "", "", "", "", "", "", t.shiftRest]);
+  }
+  return rows.map((r) => r.map(csvCell).join(",")).join("\n");
+}
+async function exportCsv() {
+  const text = buildCsv();
+  const name = "bamnun_data.csv";
+  try {
+    const file = new File([text], name, { type: "text/csv" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name }); return; }
+  } catch {}
+  try {
+    const url = URL.createObjectURL(new Blob([text], { type: "text/csv" }));
+    const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    toast("If nothing downloaded, use Copy CSV text.");
+  } catch { toast("Could not export. Use Copy CSV text."); }
+}
+async function copyCsv() {
+  try { await navigator.clipboard.writeText(buildCsv()); toast("CSV copied. Paste it into Notes or a spreadsheet."); }
+  catch { toast("Copy is blocked by this browser. Try Export."); }
+}
+
+/* ============================================================
+   SUMMARY + ADVICE (basic in Step 1; expanded in Step 4)
+   ============================================================ */
+function stageSegments(t) {
+  const end = t.end || Date.now(); const segs = []; let cur = 0, since = t.start;
+  for (const e of t.stageEvents || []) { segs.push({ stage: cur, from: since, to: e.t }); cur = e.to; since = e.t; }
+  segs.push({ stage: cur, from: since, to: end }); return segs;
+}
+function minutesAtOrAbove(t, stage) { return stageSegments(t).filter((s) => s.stage >= stage).reduce((a, s) => a + (s.to - s.from), 0) / 60000; }
+function onsetsOf(t) { return (t.stageEvents || []).filter((e) => e.to >= 2 && e.from < 2); }
+function summarize(list) {
+  const done = list.filter((t) => t.end && t.end - t.start >= 5 * 60000);
+  let hours = 0, episodes = 0, drowsyMin = 0;
+  for (const t of done) { hours += (t.end - t.start) / 3600000; episodes += onsetsOf(t).length; drowsyMin += minutesAtOrAbove(t, 2); }
+  return { trips: done.length, hours, episodes, drowsyMin, done };
+}
+function advise(list) {
+  const s = summarize(list), out = [];
+  if (s.trips < 3) return [["Not enough data yet", "Complete a few more trips (5+ minutes each) and Bamnun will show your personal patterns."]];
+  if (s.episodes === 0) return [["Great record", "No drowsiness stages (KSS 7 or higher, estimated) so far. Keep up your sleep routine and regular breaks."]];
+  const firsts = [], hourCounts = new Array(24).fill(0);
+  for (const t of s.done) { const o = onsetsOf(t); if (o.length) firsts.push((o[0].t - t.start) / 60000); for (const e of o) hourCounts[new Date(e.t).getHours()]++; }
+  firsts.sort((a, b) => a - b);
+  const m = firsts.length >> 1, median = firsts.length % 2 ? firsts[m] : (firsts[m - 1] + firsts[m]) / 2;
+  const b = clamp(Math.round(median * 0.8), 20, 120);
+  out.push([`Plan a break before minute ${b}`, `Your first drowsy stage usually appears about ${Math.round(median)} minutes into a trip. A break around minute ${b} works better than waiting for it.`]);
+  let worst = null, max = 0; hourCounts.forEach((c, h) => { if (c > max) { max = c; worst = h; } });
+  if (worst != null) {
+    const p = (n) => String(n).padStart(2, "0"), low = worst < 6 || (worst >= 13 && worst < 16);
+    out.push([`Risky time: ${p(worst)}:00-${p((worst + 1) % 24)}:00`, low ? "Most of your drowsy moments happen at a natural low point of alertness. An extra break then can help." : "Most of your drowsy moments happen around this time. Try to avoid long drives in that window."]);
+  }
+  let strong = 0, followed = 0;
+  for (const t of s.done) for (const w of t.warnings || []) if (w.kind === "warning" && w.stage >= 3) {
+    strong++; if ((t.rests || []).some((r) => r.t >= w.t && r.t <= w.t + 30 * 60000)) followed++;
+  }
+  if (strong) out.push(["Resting after strong warnings", `After ${strong} strong ${strong === 1 ? "warning" : "warnings"}, you completed a 15-minute rest ${followed} ${followed === 1 ? "time" : "times"} within 30 minutes. Stopping each time keeps you fresher for the whole trip.`]);
+  const share = s.drowsyMin / (s.hours * 60);
+  if (share >= 0.2) out.push(["A lot of drowsy time", "A large share of your driving time is in drowsy stages. More sleep before a trip, splitting long drives, or sharing the driving can help."]);
+  return out;
+}
+
+/* ============================================================
+   MAP + RENDER
+   ============================================================ */
+const map = L.map("map", { zoomControl: false }).setView([settings.fixed.lat, settings.fixed.lon], 15);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" }).addTo(map);
+let userMarker = null, stopMarker = null;
+function renderMapPos() {
+  const f = currentFix(); if (!f) return;
+  const icon = L.divIcon({ className: "", iconSize: [30, 30], iconAnchor: [15, 15], html: `<div class="arrow" style="transform:rotate(${f.heading}deg)">&#9650;</div>` });
+  if (!userMarker) userMarker = L.marker([f.lat, f.lon], { icon }).addTo(map);
+  else { userMarker.setLatLng([f.lat, f.lon]); userMarker.setIcon(icon); }
+  if (S.trip || settings.fixed.on) map.setView([f.lat, f.lon], map.getZoom());
+}
+function renderStop() {
+  const box = $("stopBox"), s = S.suggestedStop;
+  if (!s) { box.style.display = "none"; if (stopMarker) { map.removeLayer(stopMarker); stopMarker = null; } S.stopKey = ""; return; }
+  box.style.display = "block";
+  box.textContent = `☕ ${s.name} — ${s.distanceKm.toFixed(1)} km away`;
+  const key = s.name + s.lat + s.lon;
+  if (key === S.stopKey) return;
+  S.stopKey = key;
+  const icon = L.divIcon({ className: "", iconSize: [28, 28], iconAnchor: [14, 14], html: '<div class="stopicon">☕</div>' });
+  if (stopMarker) map.removeLayer(stopMarker);
+  stopMarker = L.marker([s.lat, s.lon], { icon }).addTo(map);
+  const f = currentFix(); if (f) map.fitBounds([[f.lat, f.lon], [s.lat, s.lon]], { padding: [40, 40] });
+}
+function renderStage() {
+  const box = $("stageBox");
+  const fresh = S.last && Date.now() - S.last.ts < 5000;
+  if (!fresh) {
+    box.className = "stage s-none";
+    $("stageMain").textContent = bleState === "connected" ? (S.last ? "No signal from Pi" : "Waiting for data...") : "Pi not connected";
+    $("stageSub").textContent = ""; return;
+  }
+  const st = S.confirmed, info = STAGES[st];
+  box.className = "stage s" + st;
+  $("stageMain").textContent = `Stage ${st} · ${info.name}`;
+  $("stageSub").textContent = `Estimated KSS ${info.kss} · PERCLOS ${S.last.perclos.toFixed(0)}% · EAR ${S.last.ear.toFixed(2)}`;
+}
+function renderContext() {
+  const el = $("ctxLine");
+  if (!S.trip) { el.textContent = "Not driving"; return; }
+  const now = Date.now();
+  const drive = fmtShort((now - S.drivingSince) / 60000);
+  const brk = S.lastBreakAt ? `last break ${fmtShort((now - S.lastBreakAt) / 60000)} ago` : "no break yet";
+  el.textContent = `Driving ${drive} · ${brk}`;
+}
+function fmtDate(ts) { const d = new Date(ts), p = (n) => String(n).padStart(2, "0"); return `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`; }
+function renderTrips() {
+  const s = summarize(trips), box = $("tripsBox"); box.innerHTML = "";
+  const stats = document.createElement("div"); stats.className = "card";
+  stats.innerHTML = `<div class="stats"><div><b>${s.trips}</b><span>trips</span></div><div><b>${s.hours.toFixed(1)}</b><span>hours</span></div>
+    <div><b>${s.episodes}</b><span>drowsy episodes</span></div><div><b>${Math.round(s.drowsyMin)}</b><span>min at KSS 7+</span></div></div>`;
+  box.appendChild(stats);
+  const h = document.createElement("h2"); h.textContent = "Personal advice"; box.appendChild(h);
+  for (const [title, body] of advise(trips)) {
+    const c = document.createElement("div"); c.className = "card";
+    const h3 = document.createElement("h3"); h3.textContent = title; const p = document.createElement("p"); p.textContent = body;
+    c.append(h3, p); box.appendChild(c);
+  }
+  const h2 = document.createElement("h2"); h2.textContent = "Recent trips"; box.appendChild(h2);
+  if (!trips.length) { const p = document.createElement("p"); p.style.color = "var(--muted)"; p.textContent = "No trips yet."; box.appendChild(p); }
+  for (const t of trips.slice(0, 20)) {
+    const row = document.createElement("div"); row.className = "trip";
+    const a = document.createElement("span"); a.textContent = `${fmtDate(t.start)} · ${Math.round(((t.end || Date.now()) - t.start) / 60000)} min · ${t.distanceKm.toFixed(1)} km`;
+    const n = onsetsOf(t).length;
+    const b = document.createElement("span"); b.textContent = `${n} drowsy ${n === 1 ? "episode" : "episodes"}`; b.style.color = n ? "var(--warn)" : "var(--ok)";
+    row.append(a, b); box.appendChild(row);
+  }
+}
+function renderControls() { const b = $("btnTrip"); b.textContent = S.trip ? "End trip" : "Start trip"; b.className = S.trip ? "stopbtn" : "primary"; }
+function renderAll() { renderStage(); renderContext(); renderControls(); renderStop(); renderTrips(); renderMapPos(); $("fixedBanner").style.display = settings.fixed.on ? "block" : "none"; }
+
+/* ============================================================
+   UI wiring
+   ============================================================ */
+document.querySelectorAll("nav button").forEach((btn) => btn.addEventListener("click", () => {
+  document.querySelectorAll("nav button").forEach((x) => x.classList.toggle("active", x === btn));
+  document.querySelectorAll("section").forEach((s) => s.classList.toggle("active", s.id === "tab-" + btn.dataset.tab));
+  if (btn.dataset.tab === "drive") setTimeout(() => map.invalidateSize(), 50);
+  if (btn.dataset.tab === "trips") renderTrips();
+}));
+$("btnBle").addEventListener("click", () => (bleState === "connected" ? disconnectBle() : connectBle()));
+$("btnTrip").addEventListener("click", () => (S.trip ? endTrip() : startTrip()));
+$("btnExport").addEventListener("click", exportCsv);
+$("btnCopy").addEventListener("click", copyCsv);
+$("btnClear").addEventListener("click", () => { if (confirm("Delete all saved trips and data?")) { trips = []; if (S.trip) { trips.unshift(S.trip); } persistTrips(); renderTrips(); } });
+
+function bindNumber(id, get, set, lo, hi) {
+  $(id).value = get();
+  $(id).addEventListener("change", () => { const v = parseFloat($(id).value); if (!Number.isNaN(v) && v >= lo && v <= hi) { set(v); saveSettings(); renderMapPos(); } else $(id).value = get(); });
+}
+bindNumber("setConfirm", () => settings.confirmSec, (v) => (settings.confirmSec = v), 1, 10);
+bindNumber("setBreak", () => settings.breakReminderMin, (v) => (settings.breakReminderMin = v), 30, 240);
+bindNumber("setRadius", () => settings.radiusKm, (v) => { settings.radiusKm = v; S.stopCache = null; }, 2, 60);
+bindNumber("setLat", () => settings.fixed.lat, (v) => { settings.fixed.lat = v; S.stopCache = null; }, -90, 90);
+bindNumber("setLon", () => settings.fixed.lon, (v) => { settings.fixed.lon = v; S.stopCache = null; }, -180, 180);
+bindNumber("setHeading", () => settings.fixed.heading, (v) => (settings.fixed.heading = v), 0, 359);
+bindNumber("setSpeed", () => settings.fixed.speed, (v) => (settings.fixed.speed = v), 0, 200);
+for (const [id, key] of [["setVoice", "voiceOn"], ["setTones", "tonesOn"]]) {
+  $(id).checked = settings[key]; $(id).addEventListener("change", () => { settings[key] = $(id).checked; saveSettings(); });
+}
+$("setFixedOn").checked = settings.fixed.on;
+$("setFixedOn").addEventListener("change", () => { settings.fixed.on = $("setFixedOn").checked; S.stopCache = null; saveSettings(); renderAll(); });
+$("btnHere").addEventListener("click", () => {
+  if (!navigator.geolocation) return toast("GPS is not available in this browser.");
+  navigator.geolocation.getCurrentPosition((p) => {
+    settings.fixed.lat = +p.coords.latitude.toFixed(5); settings.fixed.lon = +p.coords.longitude.toFixed(5);
+    $("setLat").value = settings.fixed.lat; $("setLon").value = settings.fixed.lon; S.stopCache = null; saveSettings(); renderMapPos();
+    toast("Fixed location set to where you are now.");
+  }, (e) => toast("Could not get location: " + e.message, 5000), { enableHighAccuracy: true, timeout: 15000 });
+});
+
+if (!navigator.bluetooth) toast("Tip: for Bluetooth on iPhone, open this page in the Bluefy browser.", 8000);
+setBle("idle"); renderAll();
+</script>
+</body>
+</html>
