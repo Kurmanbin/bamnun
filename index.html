@@ -129,6 +129,7 @@
       <h2>Korean map search (Kakao)</h2>
       <label for="setKakao">Kakao JavaScript key</label>
       <input type="text" id="setKakao" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="paste key here">
+      <button class="btn" id="btnTestStop">Test rest stop search</button>
       <div class="hint" id="kakaoStatus">Not set. Without it, the app uses OpenStreetMap in towns.</div>
 
       <h2>Indoor test location</h2>
@@ -933,6 +934,17 @@ $("btnHere").addEventListener("click", () => {
   }, (e) => toast("Could not get location: " + e.message, 5000), { enableHighAccuracy: true, timeout: 15000 });
 });
 
+$("btnTestStop").addEventListener("click", async () => {
+  const f = currentFix();
+  if (!f) return toast("No location yet. Turn on the fixed location or start a trip first.", 5000);
+  toast("Searching...", 8000);
+  S.stopCache = null;
+  const t0 = Date.now();
+  const s = await getStop(8000);
+  const kinds = { shelter: "drowsiness shelter", area: "rest area", fuel: "gas station", shop: "convenience store" };
+  toast(s ? `${s.name} (${kinds[s.kind] || "stop"}) ${s.distanceKm.toFixed(1)} km - ${((Date.now() - t0) / 1000).toFixed(1)} s` : "Nothing found within " + settings.radiusKm + " km.", 9000);
+  if (s) { S.suggestedStop = s; renderStop(); }
+});
 $("setKakao").value = settings.kakaoKey || "";
 $("setKakao").addEventListener("change", () => { settings.kakaoKey = $("setKakao").value.trim(); saveSettings(); S.stopCache = null; loadKakao(); });
 loadKakao();
