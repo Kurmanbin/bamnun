@@ -56,7 +56,7 @@
   h2 { font-size: 15px; margin: 18px 0 8px; color: var(--muted); font-weight: 600; }
   .trip { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #ffffff12; font-size: 14px; }
   label { display: block; font-size: 14px; margin: 14px 0 6px; }
-  input[type=number], select { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #ffffff22;
+  input[type=number], input[type=text], select { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #ffffff22;
     background: var(--panel); color: var(--text); font-size: 16px; }
   .row { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 14px; }
   .row label { margin: 0; }
@@ -125,6 +125,11 @@
       <div class="row"><input type="checkbox" id="setVoice"><label for="setVoice">Spoken messages</label></div>
       <div class="row"><input type="checkbox" id="setTones"><label for="setTones">Phone warning tones (stages 3 and 4)</label></div>
       <div class="hint">The calibrated alarms are on the Pi. Phone tones are a softer extra.</div>
+
+      <h2>Korean map search (Kakao)</h2>
+      <label for="setKakao">Kakao JavaScript key</label>
+      <input type="text" id="setKakao" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="paste key here">
+      <div class="hint" id="kakaoStatus">Not set. Without it, the app uses OpenStreetMap in towns.</div>
 
       <h2>Indoor test location</h2>
       <div class="row"><input type="checkbox" id="setFixedOn"><label for="setFixedOn">Use a fixed location instead of GPS</label></div>
@@ -211,7 +216,7 @@ const MIN_VOICE_GAP_MS = 8000;
 const REST_MS = 15 * 60000;                          // a 15-minute stop counts as a rest
 
 /* ---------- settings ---------- */
-const DEFAULTS = { confirmSec: 3, breakReminderMin: 120, radiusKm: 20, voiceOn: true, tonesOn: true,
+const DEFAULTS = { kakaoKey: "", confirmSec: 3, breakReminderMin: 120, radiusKm: 20, voiceOn: true, tonesOn: true,
   fixed: { on: false, lat: 37.3826, lon: 126.6431, heading: 90, speed: 60 } };
 const savedSettings = load("bamnun2.settings", {});
 const settings = Object.assign({}, DEFAULTS, savedSettings, { fixed: Object.assign({}, DEFAULTS.fixed, savedSettings.fixed || {}) });
@@ -335,7 +340,7 @@ function cleanName(n) { return String(n || "").replace(/[<>{}]/g, "").trim() || 
 function spokenName(s) {
   if (s.kind === "shelter") return "the drowsiness rest area";
   const n = cleanName(s.name);
-  return /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7A3]/.test(n) ? (s.kind === "fuel" ? "a gas station" : "a rest area") : n;
+  return /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7A3]/.test(n) ? (s.kind === "fuel" ? "a gas station" : s.kind === "shop" ? "a convenience store" : "a rest area") : n;
 }
 function phrase(kind, stop, extra) {
   const P = PHRASES[kind];
@@ -498,7 +503,50 @@ function nearbyShelters(fix, radiusKm) {
   }
   return out;
 }
+/* ---------- Kakao Local search (JavaScript key; the key is typed in Settings and stays on this phone) ---------- */
+let kakaoState = "off";   // off | loading | ready | error
+function setKakaoStatus(state, msg) {
+  kakaoState = state;
+  const el = $("kakaoStatus"); if (!el) return;
+  el.textContent = msg || ({ off: "Not set. Without it, the app uses OpenStreetMap in towns.", loading: "Loading Kakao...",
+    ready: "Kakao search is ready.", error: "Kakao did not load. Check the key and the registered web address." }[state]);
+}
+function loadKakao() {
+  const key = (settings.kakaoKey || "").trim();
+  if (!key) { setKakaoStatus("off"); return; }
+  if (window.kakao && window.kakao.maps && window.kakao.maps.services) { setKakaoStatus("ready"); return; }
+  setKakaoStatus("loading");
+  const s = document.createElement("script");
+  s.src = "https://dapi.kakao.com/v2/maps/sdk.js?appkey=" + encodeURIComponent(key) + "&libraries=services&autoload=false";
+  s.onload = () => { try { window.kakao.maps.load(() => setKakaoStatus("ready")); } catch { setKakaoStatus("error"); } };
+  s.onerror = () => setKakaoStatus("error");
+  document.head.appendChild(s);
+}
+function kakaoQuery(run) {
+  return new Promise((resolve) => {
+    const t = setTimeout(() => resolve([]), 3500);
+    try { run((data, status) => { clearTimeout(t); resolve(status === window.kakao.maps.services.Status.OK ? data : []); }); }
+    catch { clearTimeout(t); resolve([]); }
+  });
+}
+async function kakaoStops(lat, lon, radiusKm) {
+  if (kakaoState !== "ready") return [];
+  const K = window.kakao.maps, ps = new K.services.Places();
+  const opt = { location: new K.LatLng(lat, lon), radius: Math.min(20000, Math.round(radiusKm * 1000)), sort: K.services.SortBy.DISTANCE };
+  const [fuel, shop, area] = await Promise.all([
+    kakaoQuery((cb) => ps.categorySearch("OL7", cb, opt)),     // gas stations
+    kakaoQuery((cb) => ps.categorySearch("CS2", cb, opt)),     // convenience stores
+    kakaoQuery((cb) => ps.keywordSearch("휴게소", cb, opt)),     // rest areas
+  ]);
+  const conv = (arr, kind) => arr.map((d) => ({ name: d.place_name, lat: parseFloat(d.y), lon: parseFloat(d.x), kind })).filter((x) => !Number.isNaN(x.lat) && !Number.isNaN(x.lon));
+  return conv(area, "area").concat(conv(fuel, "fuel"), conv(shop, "shop"));
+}
 async function findRestStops(lat, lon, radiusKm) {
+  const k = await kakaoStops(lat, lon, radiusKm);
+  if (k.length) return k;
+  return findOsmStops(lat, lon, radiusKm);
+}
+async function findOsmStops(lat, lon, radiusKm) {
   const r = Math.round(radiusKm * 1000);
   const q = `[out:json][timeout:15];(
     node(around:${r},${lat},${lon})["highway"="rest_area"];
@@ -885,6 +933,9 @@ $("btnHere").addEventListener("click", () => {
   }, (e) => toast("Could not get location: " + e.message, 5000), { enableHighAccuracy: true, timeout: 15000 });
 });
 
+$("setKakao").value = settings.kakaoKey || "";
+$("setKakao").addEventListener("change", () => { settings.kakaoKey = $("setKakao").value.trim(); saveSettings(); S.stopCache = null; loadKakao(); });
+loadKakao();
 if (!navigator.bluetooth) toast("Tip: for Bluetooth on iPhone, open this page in the Bluefy browser.", 8000);
 setBle("idle"); renderAll();
 </script>
